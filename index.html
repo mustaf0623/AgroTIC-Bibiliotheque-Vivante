@@ -120,12 +120,15 @@ header{
 }
 .logo{display:flex;align-items:center;gap:.75rem}
 .logo-mark{
-  width:38px;height:38px;
-  background:linear-gradient(135deg,var(--canopy),var(--teal));
-  border-radius:10px;
+  width:42px;height:42px;
+  border-radius:8px;
   display:flex;align-items:center;justify-content:center;
-  font-size:1.15rem;
+  overflow:hidden;
   box-shadow:0 4px 12px rgba(0,0,0,.3);
+}
+.logo-mark img{
+  width:100%;height:100%;
+  object-fit:contain;
 }
 .logo-wordmark{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:600;color:var(--cream);letter-spacing:.02em}
 .logo-wordmark span{color:var(--gold)}
@@ -229,7 +232,7 @@ nav{
 .featured:hover{border-color:rgba(90,158,80,.5);transform:translateX(2px)}
 .feat-eye{font-size:.58rem;color:var(--tech);text-transform:uppercase;letter-spacing:.15em;margin-bottom:.5rem}
 .feat-title{font-family:'Cormorant Garamond',serif;font-size:1.25rem;color:var(--cream);margin-bottom:.4rem;line-height:1.2}
-.feat-excerpt{font-size:.72rem;color:var(--fog);line-height:1.55;margin-bottom:.65rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.feat-excerpt{font-size:.72rem;color:var(--fog);line-height:1.55;margin-bottom:.65rem;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .feat-meta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 
 /* Badges */
@@ -275,7 +278,7 @@ nav{
 }
 .ncard-body{flex:1;min-width:0}
 .ncard-title{font-size:.82rem;color:var(--cream);font-weight:500;margin-bottom:.2rem;line-height:1.3}
-.ncard-excerpt{font-size:.68rem;color:var(--fog);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ncard-excerpt{font-size:.68rem;color:var(--fog);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .ncard-badges{display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap}
 .ncard-read{width:7px;height:7px;border-radius:50%;background:var(--fern);flex-shrink:0;margin-top:.3rem}
 .ncard-unread{width:7px;height:7px;border-radius:50%;background:rgba(200,150,70,.2);flex-shrink:0;margin-top:.3rem}
@@ -413,7 +416,7 @@ nav{
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
 .pop-x{background:none;border:none;color:var(--fog);cursor:pointer;font-size:.95rem;line-height:1;padding:.1rem}
 .pop-title{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:var(--cream);margin-bottom:.35rem;line-height:1.25}
-.pop-prev{font-size:.72rem;color:var(--fog);line-height:1.5;margin-bottom:.65rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pop-prev{font-size:.72rem;color:var(--fog);line-height:1.5;margin-bottom:.65rem;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pop-ft{display:flex;align-items:center;justify-content:space-between}
 .pop-cta{font-size:.68rem;color:var(--tech);font-weight:600;background:rgba(0,201,154,.1);border:1px solid rgba(0,201,154,.2);border-radius:100px;padding:.2rem .65rem}
 
@@ -869,7 +872,7 @@ select.ssel{background:rgba(26,18,8,.9);border:1px solid rgba(200,150,70,.2);col
 <!-- HEADER -->
 <header>
   <div class="logo">
-    <div class="logo-mark">🌿</div>
+    <div class="logo-mark"><img src="icon-192.png" alt="AgroTIC Logo" /></div>
     <div class="logo-wordmark">Agro<span>TIC</span></div>
   </div>
   <button class="timer-btn" onclick="triggerPopup()" title="Prochain rappel">
@@ -3168,6 +3171,9 @@ let saved = JSON.parse(localStorage.getItem('sv')||'[]');
 let read  = JSON.parse(localStorage.getItem('rd')||'[]');
 let _curNotion = null;
 
+// ══ STORAGE KEYS ══
+const FACTS_KEY = 'agrotic_facts';
+
 // ══ PROGRESSION RÉELLE ══
 const XP_READ   = 10;  // XP par notion lue
 const XP_SAVE   = 5;   // XP par notion sauvegardée
@@ -3182,8 +3188,8 @@ const LEVELS = [
 ];
 
 // Niveau de notions accessible selon XP
-const XP_LVL2 = 200;  // déblocage niveau 2
-const XP_LVL3 = 500;  // déblocage niveau 3
+const XP_LVL2 = 600;   // déblocage niveau 2 — 85% notions Niv.1 maîtrisées
+const XP_LVL3 = 1500;  // déblocage niveau 3 — 85% notions Niv.2 maîtrisées
 
 function getMaxNotionLevel(xp){
   if(xp >= XP_LVL3) return 3;
@@ -3191,8 +3197,31 @@ function getMaxNotionLevel(xp){
   return 1;
 }
 
+function getMasteryPercentageByLevel(lvl){
+  // Calcule le % de notions maîtrisées (mastery >= 1) pour un niveau donné
+  const notionsInLevel = DATA.filter(n => (n.lvl||1) === lvl);
+  if(notionsInLevel.length === 0) return 100;
+  const masteredCount = notionsInLevel.filter(n => getNotion_mastery(n.id) >= 1).length;
+  return Math.round((masteredCount / notionsInLevel.length) * 100);
+}
+
 function isNotionUnlocked(n){
-  return (n.lvl||1) <= getMaxNotionLevel(loadXP());
+  const maxLvl = getMaxNotionLevel(loadXP());
+  const notionLvl = (n.lvl||1);
+  
+  if(notionLvl > maxLvl) return false; // XP insuffisant
+  
+  // Vérifier maîtrise 85% du niveau précédent
+  if(notionLvl === 2){
+    const lvl1Mastery = getMasteryPercentageByLevel(1);
+    if(lvl1Mastery < 85) return false;
+  }
+  if(notionLvl === 3){
+    const lvl2Mastery = getMasteryPercentageByLevel(2);
+    if(lvl2Mastery < 85) return false;
+  }
+  
+  return true;
 }
 
 function getLvlLabel(lvl){
@@ -3304,13 +3333,6 @@ function showXPToast(msg, xp){
 // ══ CHECK LEVEL UP ══
 function checkLevelUp(xp){
   try {
-    const LEVELS = [
-      {name:'🌱 Agronome Initié',    min:0,    unlocks:1},
-      {name:'🌿 Agronome Confirmé',  min:200,  unlocks:2},
-      {name:'🌾 Agronome Expert',    min:500,  unlocks:3},
-      {name:'🌳 Agronome Maître',    min:1000, unlocks:3},
-      {name:'🏆 Agronome Émérite',   min:2000, unlocks:3},
-    ];
     const prev = parseInt(localStorage.getItem('agrotic_prev_xp') || '0');
     localStorage.setItem('agrotic_prev_xp', String(xp));
     const prevLevel = LEVELS.filter(l => prev >= l.min).pop();
@@ -3676,8 +3698,20 @@ function openNotion(n){
   if(!n)return;
   // Bloquer les notions verrouillées
   if(!isNotionUnlocked(n)){
-    const xpReq = (n.lvl||1)===3 ? XP_LVL3 : XP_LVL2;
-    showLvlToast('🔒 Notion verrouillée', 'Atteins '+xpReq+' XP pour débloquer ce niveau');
+    const notionLvl = (n.lvl||1);
+    const xp = loadXP();
+    const xpReq = notionLvl===3 ? XP_LVL3 : XP_LVL2;
+    
+    // Vérifier quelle est la raison du verrouillage
+    if(xp < xpReq){
+      // Raison : XP insuffisant
+      showLvlToast('🔒 Notion verrouillée', 'Atteins '+xpReq+' XP pour débloquer ce niveau');
+    } else if(notionLvl === 2 || notionLvl === 3){
+      // Raison : maîtrise insuffisante du niveau précédent
+      const prevLvl = notionLvl - 1;
+      const prevMastery = getMasteryPercentageByLevel(prevLvl);
+      showLvlToast('📚 Maîtrise requise', 'Maîtrise 85% des notions Niveau '+prevLvl+' (actuellement '+prevMastery+'%)');
+    }
     return;
   }
   _curNotion=n;
@@ -3686,14 +3720,14 @@ function openNotion(n){
     read.push(n.id);
     localStorage.setItem('rd',JSON.stringify(read));
     document.getElementById('stR').textContent=read.length;
-    // Gain XP réel — bonus si notion avancée
-    const xpGain = XP_READ * (n.lvl||1);
-    const xp = addXP(xpGain);
-    showXPToast('+'+xpGain+' XP — Notion '+(['','','intermédiaire','avancée'][n.lvl||1]||'')+'lue !', xp);
-    checkLevelUp(xp);
-    refreshProgressUI();
-    // Système expert : enregistrer notion vue + préparer quiz
+    // Initialiser maîtrise si première lecture
     if(getNotion_mastery(n.id) === 0) setNotion_mastery(n.id, 0);
+    refreshProgressUI();
+  }
+  // Proposer le quiz si la notion n'est pas maîtrisée (mastery < 3)
+  // Cela permet de réviser et d'améliorer progressivement
+  const mastery = getNotion_mastery(n.id);
+  if(mastery < 3){
     triggerExpertQuiz(n);
   }
   document.getElementById('mCats').innerHTML=n.badgeLabels.map((l,i)=>`<span class="badge ${n.badges[i]}">${l}</span>`).join('')+`<span class="badge" style="background:rgba(26,53,32,.3);color:var(--fern);border:1px solid rgba(90,158,80,.2)">${THEMES[n.theme].icon} ${THEMES[n.theme].label}</span>`;
@@ -4533,10 +4567,7 @@ function setItinFilter(f) { itinFilter = f; renderItin(); }
 //  SYSTÈME EXPERT — BASE DE CONNAISSANCES + MOTEUR D'INFÉRENCE
 //  Propulsé par l'API Claude (claude-sonnet-4-20250514)
 // ══════════════════════════════════════════════════════════════
-
 // ── Base de faits (persistante en localStorage) ──
-const FACTS_KEY = 'agrotic_facts';
-
 function loadFacts(){
   try { return JSON.parse(localStorage.getItem(FACTS_KEY) || '{}'); }
   catch(e){ return {}; }
@@ -4683,7 +4714,7 @@ const STATIC_QUIZZES = {
   123: {q:`Quelle plateforme gratuite permet de surveiller la déforestation mondiale en temps quasi-réel ?`,o:["Google Maps uniquement", "Global Forest Watch (globalforestwatch.org) — alertes gratuites par email", "Facebook Satellite", "WeatherUnderground"],c:1,e:`Global Forest Watch permet de suivre en temps quasi-réel la couverture forestière mondiale, les alertes incendies (VIIRS), les concessions et aires protégées, avec des alertes personnalisées par email pour n'importe quelle zone — entièrement gratuit.`,f:`Le CSE Dakar utilise GEE + Sentinel-2 pour produire annuellement la carte nationale des changements de couverture végétale sénégalaise, alimentant le SRNACC du Sénégal requis pour les projets REDD+ et les NDC de l'Accord de Paris.`},
   124: {q:`Quel différentiel de prix la double certification bio + équitable apporte-t-elle sur la gomme arabique sénégalaise ?`,o:["Aucun — le marché ne paie pas de prime", "+10-20% de premium", "+133-192% — de 1 200 à 2 800-3 500 FCFA/kg", "×10 — de 1 200 à 12 000 FCFA/kg"],c:2,e:`La certification Ecocert (bio) + Fairtrade (équitable) fait passer la gomme arabique sénégalaise de 1 200 FCFA/kg (non certifié) à 2 800-3 500 FCFA/kg — un différentiel de +133-192% qui transforme radicalement la rentabilité des producteurs.`,f:`COPROKAAS a obtenu la certification Ecocert en 2021 et contracté directement avec Nexira (France, leader mondial) à 2 EUR/kg rendu Dakar — 4x le prix des intermédiaires locaux. 800 collecteurs bénéficiaires dans les régions de Louga et Matam.`},
   125: {q:`Dans un projet de crédit carbone forestier VCS, comment se calculent les crédits générés ?`,o:["Crédits = Surface forestière totale × 10 t CO₂/ha", "Crédits = (Carbone séquestré projet) - (Scénario de référence sans projet) - Fuites", "Crédits = Budget du projet en USD", "Crédits = Nombre d'arbres × 50 kg CO₂/arbre"],c:1,e:`Les crédits VCS ne reflètent que l'additionnalité : ce qui a été séquestré EN PLUS de ce qui se serait passé sans le projet, moins les fuites (déforestation déplacée hors zone projet). Cette rigueur garantit l'intégrité des crédits sur les marchés.`,f:`Le Sénégal compte 8 projets carbone forestiers en développement (2024). Potentiel total : 5-8 millions t CO₂e/an d'ici 2030 — revenus potentiels de 75-120 millions USD/an si tous les projets identifiés sont développés et certifiés.`},
-  126: {q:`Quelle stratégie de reboisement est recommandée pour améliorer la résilience des forêts sahéliennes au changement climatique ?`,o:["Monospécifier avec l'espèce la plus productive", "Diversifier les espèces et les provenances génétiques + maintenir des corridors écologiques", "Ne pas reboiser et laisser la régénération naturelle seule", "Utiliser uniquement des espèces introduites à croissance rapide"],c:1,e:`La diversification des espèces et des provenances (différentes origines géographiques d'une même espèce) combinée à des corridors écologiques facilite la migration naturelle des espèces face au déplacement des enveloppes climatiques.`,f:`ForestForward (CIFOR/CGIAR) développe un atlas interactif identifiant les zones forestières à haut risque climatique et recommandant des espèces de remplacement résilientes pour les projets de reboisement sahéliens à l'horizon 2050.`},,
+  126: {q:`Quelle stratégie de reboisement est recommandée pour améliorer la résilience des forêts sahéliennes au changement climatique ?`,o:["Monospécifier avec l'espèce la plus productive", "Diversifier les espèces et les provenances génétiques + maintenir des corridors écologiques", "Ne pas reboiser et laisser la régénération naturelle seule", "Utiliser uniquement des espèces introduites à croissance rapide"],c:1,e:`La diversification des espèces et des provenances (différentes origines géographiques d'une même espèce) combinée à des corridors écologiques facilite la migration naturelle des espèces face au déplacement des enveloppes climatiques.`,f:`ForestForward (CIFOR/CGIAR) développe un atlas interactif identifiant les zones forestières à haut risque climatique et recommandant des espèces de remplacement résilientes pour les projets de reboisement sahéliens à l'horizon 2050.`},
   127: {q:`Comment les stomates régulent-ils la perte en eau lors d'un stress hydrique ?`,o:["Ils s'ouvrent davantage", "L'ABA déclenche leur fermeture réduisant la transpiration", "Ils se transforment en lenticelles", "Ils expulsent le sel excédentaire"],c:1,e:`Lors d'un déficit hydrique, les racines sécrètent de l'acide abscissique (ABA) qui remonte vers les feuilles et provoque la fermeture des cellules de garde des stomates — réduisant la transpiration mais aussi la photosynthèse.`,f:`Les variétés de mil ISRA sélectionnées pour la tolérance à la sécheresse ferment leurs stomates 30-45 minutes plus tôt en journée, réduisant les pertes hydriques de 20-30% sans impact majeur sur le rendement final.`},
   128: {q:`Sur quelles feuilles apparaissent en premier les carences en azote et pourquoi ?`,o:["Sur les jeunes feuilles (carence immobile)", "Sur les vieilles feuilles (azote mobile réalloué vers les jeunes organes)", "Sur les racines uniquement", "Sur les fleurs uniquement"],c:1,e:`L'azote est un élément mobile — la plante le réalloue des vieilles feuilles vers les jeunes organes en croissance lors d'une carence. Les symptômes (chlorose jaune) apparaissent donc en premier sur les feuilles les plus âgées, à la base de la tige.`,f:`Les sols Dior sénégalais du bassin arachidier sont naturellement pauvres en N et P. La formule ISRA recommandée pour le mil : 50-60 kg N/ha + 15-20 kg P₂O₅/ha + 15-20 kg K₂O/ha (équivalent formule 15-15-15).`},
   129: {q:`Quel avantage principal ont les plantes C4 (mil, sorgho, maïs) sur les C3 sous chaleur sahélienne ?`,o:["Elles poussent plus vite en toute saison", "Elles concentrent le CO₂ dans les cellules, supprimant la photorespiration et gagnant 30-50% d'efficience en eau", "Elles n'ont pas besoin d'eau du tout", "Elles résistent mieux aux maladies fongiques"],c:1,e:`Le mécanisme photosynthétique C4 (cycle de Hatch-Slack) concentre le CO₂ dans les cellules de la gaine vasculaire, supprimant quasi totalement la photorespiration qui fait perdre 30-40% du carbone fixé aux plantes C3 sous forte chaleur.`,f:`L'optimum thermique des plantes C4 est 30-40°C — exactement les conditions sahéliennes. Le projet C4 Rice de l'IRRI vise à introduire ce mécanisme dans le riz par CRISPR, ce qui augmenterait ses rendements de 50% sous conditions tropicales.`},
@@ -4941,8 +4972,10 @@ function selectAnswer(chosen, correct, dataEncoded, notionId){
   if(isCorrect){
     const newMastery = Math.min(currentMastery + 1, 3);
     setNotion_mastery(notionId, newMastery);
-    // XP bonus pour bonne réponse
-    const bonus = 5 * newMastery;
+    // XP bonus pour bonne réponse — proportionnel au niveau de la notion
+    const notion = DATA.find(n => n.id === notionId);
+    const lvlFactor = notion ? (notion.lvl || 1) : 1;
+    const bonus = 5 * newMastery * lvlFactor;
     const xp = addXP(bonus);
     showXPToast('+'+bonus+' XP — Bonne réponse !', xp);
     checkLevelUp(xp);
